@@ -246,11 +246,11 @@ def runHitsPagerank(G, outputPath="hitsMetrics.json"):
   results["hubs"] = topHubs
   results["authorities"] = topAuthorities 
   
-  print("Running hits")
+  print("Running pageRank")
   pr = pageRank(G)
   results["pageRank"] = pr
 
-  print("Writing ot file")
+  print("Writing to file")
   with open(outputPath, "w") as f:
     json.dump(results, f, indent=2, default=str)
 
@@ -260,13 +260,16 @@ def compareHits():
 
   hubs = set(str(user) for user, score in hits["hubs"])
   authorities = set(str(user) for user, score in hits["authorities"])
+  pagerank = set(str(user) for user, score in hits["pageRank"])
 
-  overlap = hubs & authorities
+  overlap = pagerank & authorities
 
   print("Top 50 hubs:", len(hubs))
   print("Top 50 authorities:", len(authorities))
   print("Users appearing in both lists:", len(overlap))
   print("Overlapping users:", overlap)
+
+compareHits()
 
 
 

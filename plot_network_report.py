@@ -406,7 +406,22 @@ def plot_hits(hits: dict[str, Any], out: Path, top_n: int) -> None:
         save_figure(fig, out, filename)
         write_csv(out / f"{filename}.csv", ["node_id", "score"], [[n, s] for n, s in reversed(pairs)])
 
-
+def plot_pageRank(hits: dict[str, Any], out: Path, top_n: int = 20):
+    for key, title, filename in [
+            ("pageRank", "Top PageRank", "21_top_pagerank")
+        ]:
+            pairs = top_pairs(hits.get(key))
+            if not pairs:
+                continue
+            pairs = pairs[:top_n][::-1]
+            fig, ax = plt.subplots(figsize=(9, max(4.5, 0.24 * len(pairs))))
+            ax.barh([x[0] for x in pairs], [x[1] for x in pairs])
+            ax.set_xlabel("PageRank score")
+            ax.set_ylabel("Node ID")
+            ax.set_title(title)
+            ax.tick_params(axis="y", labelsize=7)
+            save_figure(fig, out, filename)
+            write_csv(out / f"{filename}.csv", ["node_id", "score"], [[n, s] for n, s in reversed(pairs)])
 
 def plot_leiden_community_network(
     comm: dict[str, Any],
@@ -637,7 +652,8 @@ def main() -> None:
     # plot_homophily(comm, args.out_dir)
     # plot_hits(hits, args.out_dir, args.top_n)
     # write_report_summary(metrics, comm, hits, args.out_dir)
-    plot_betweenness()
+    # plot_betweenness()
+    plot_pageRank(hits, args.out_dir)
 
     print(f"\nFinished. Figures and tables are in: {args.out_dir.resolve()}")
 

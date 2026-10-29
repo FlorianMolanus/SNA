@@ -26,6 +26,8 @@ import json
 import math
 from pathlib import Path
 from typing import Any
+from scipy.stats import spearmanr
+import numpy as np
 
 import matplotlib
 matplotlib.use("Agg")  # works on servers/headless machines
@@ -176,7 +178,7 @@ def plot_centrality(metrics: dict[str, Any], out: Path, top_n: int) -> None:
         if not values:
             continue
         values.sort(key=lambda p: p[1], reverse=True)
-        values = values[:top_n]
+        values = values[:40]
         values.reverse()
         fig, ax = plt.subplots(figsize=(9, max(4.5, 0.24 * len(values))))
         ax.barh([x[0] for x in values], [x[1] for x in values])
@@ -187,6 +189,77 @@ def plot_centrality(metrics: dict[str, Any], out: Path, top_n: int) -> None:
         save_figure(fig, out, filename)
         write_csv(out / f"{filename}.csv", ["node_id", "score"], [[n, s] for n, s in reversed(values)])
 
+def plot_degree_centrality_distribution(
+    filename="metrics.json",
+    bins=50
+):
+    with open(filename, "r") as f:
+        metrics = json.load(f)
+
+    scores = list(metrics["degreeCentrality"].values())
+
+    plt.figure(figsize=(10, 6))
+    plt.hist(scores, bins=bins)
+
+    plt.yscale("log")  # Logarithmic y-axis
+    plt.xlabel("Degree Centrality")
+    plt.ylabel("Number of Users")
+    plt.title("Distribution of Degree Centrality")
+    plt.tight_layout()
+    plt.savefig("centrality")
+    # plt.show()
+
+
+def plot_betweenness(metricsFile="metrics.json", otherFile="commMetrics.json"):
+    with open(metricsFile, "r") as f:
+        metrics = json.load(f)
+
+    with open(otherFile, "r") as f:
+        comm_metrics = json.load(f)
+
+    betweenness = dict(comm_metrics["bridges"]["topBetweenness"])
+
+    in_degree = metrics["inDegreeCentrality"]
+
+    common_users = [
+        user for user in betweenness
+        if user in in_degree
+    ]
+
+    x = np.array([
+        in_degree[user] for user in common_users
+    ], dtype=float)
+
+    y = np.array([
+        betweenness[user] for user in common_users
+    ], dtype=float)
+
+    if len(x) < 2:
+        raise ValueError("Need at least two matched users.")
+
+    # Correlation
+    rho, p_value = spearmanr(x, y)
+
+    print(f"Matched users: {len(x)}")
+    print(f"Spearman correlation: {rho:.4f}")
+    print(f"P-value: {p_value:.4g}")
+    print(f"Median betweenness: {np.median(y):.6g}")
+    print(f"90th percentile: {np.percentile(y, 90):.6g}")
+    print(f"Maximum betweenness: {np.max(y):.6g}")
+    print(f"Zero betweenness: {np.mean(y == 0):.1%}")
+
+    # Scatter plot
+    plt.figure(figsize=(9, 6))
+    plt.scatter(x, y, alpha=0.7)
+
+    plt.xlabel("In-degree centrality")
+    plt.ylabel("Betweenness centrality")
+    plt.title(
+        f"In-degree vs. betweenness (n={len(x)}, "
+        f"Spearman ρ={rho:.2f})"
+    )
+    plt.tight_layout()
+    plt.savefig("report_figures/20_centralities")
 
 def plot_clustering_density(metrics: dict[str, Any], out: Path) -> None:
     vals = [
@@ -551,18 +624,20 @@ def main() -> None:
         "ps.fonttype": 42,
     })
 
-    plot_degree_distributions(metrics, args.out_dir)
-    plot_network_summary(metrics, comm, args.out_dir)
-    plot_component_sizes(metrics, args.out_dir)
-    plot_centrality(metrics, args.out_dir, args.top_n)
-    plot_clustering_density(metrics, args.out_dir)
-    plot_community_sizes(comm, args.out_dir)
-    plot_leiden_community_network(comm, args.out_dir)
-    plot_cliques(comm, args.out_dir)
-    plot_bridge_metrics(comm, args.out_dir, args.top_n)
-    plot_homophily(comm, args.out_dir)
-    plot_hits(hits, args.out_dir, args.top_n)
-    write_report_summary(metrics, comm, hits, args.out_dir)
+    # plot_degree_distributions(metrics, args.out_dir)
+    # plot_network_summary(metrics, comm, args.out_dir)
+    # plot_component_sizes(metrics, args.out_dir)
+    # plot_centrality(metrics, args.out_dir, args.top_n)
+    # plot_degree_centrality_distribution()
+    # plot_clustering_density(metrics, args.out_dir)
+    # plot_community_sizes(comm, args.out_dir)
+    # plot_leiden_community_network(comm, args.out_dir)
+    # plot_cliques(comm, args.out_dir)
+    # plot_bridge_metrics(comm, args.out_dir, args.top_n)
+    # plot_homophily(comm, args.out_dir)
+    # plot_hits(hits, args.out_dir, args.top_n)
+    # write_report_summary(metrics, comm, hits, args.out_dir)
+    plot_betweenness()
 
     print(f"\nFinished. Figures and tables are in: {args.out_dir.resolve()}")
 

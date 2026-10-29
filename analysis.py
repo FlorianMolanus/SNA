@@ -21,9 +21,9 @@ def degreeDistribution(G):
   return inDistribution, outDistribution
 
 def centralityIndices(G):
-  degreeCentrality = nx.degree_centrality(G)
-  inDegreeCentrality = nx.in_degree_centrality(G)
-  outDegreeCentrality = nx.out_degree_centrality(G)
+  degreeCentrality = dict(sorted(nx.degree_centrality(G).items(), key=lambda item: item[1], reverse=True))
+  inDegreeCentrality = dict(sorted(nx.in_degree_centrality(G).items(), key=lambda item: item[1], reverse=True))
+  outDegreeCentrality = dict(sorted(nx.out_degree_centrality(G).items(), key=lambda item: item[1], reverse=True))
   return degreeCentrality, inDegreeCentrality, outDegreeCentrality
 
 def clusteringCoefficient(G):

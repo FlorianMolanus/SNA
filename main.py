@@ -158,5 +158,5 @@ if __name__ == "__main__":
   print("Loaded dataset in %s seconds" % (time.time() - startTime))
 
   # egoIds = findEgoIds(folder)
-  print(centralityIndices(G))
+  print(clusteringCoefficient(G))
 

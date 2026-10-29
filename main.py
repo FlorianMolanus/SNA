@@ -165,4 +165,4 @@ if __name__ == "__main__":
     print(f"  Circles known: {G.nodes[sampleEgo].get('circles', {})}")
     feats = G.nodes[sampleEgo].get('features', {}).get(sampleEgo, {})
     onFeats = [k for k, v in feats.items() if v == 1]
-    print(f"  Ego's own active features (sample): {onFeats[:5]}
+    print(f"  Ego's own active features (sample): {onFeats[:5]}")

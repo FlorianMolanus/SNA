@@ -221,16 +221,54 @@ def runCommunityAnalysis(G: nx.DiGraph, U: nx.Graph, outputPath="commMetrics.jso
 
 
 # 3. HITS algorithm
-def HITS(G, outputPath="hitsMetrics.json"):
+def HITS(G):
   hubs, authorities = nx.hits(G, max_iter=500)
   topHubs = sorted(hubs.items(), key=lambda x: x[1], reverse=True)[:50]
   topAuthorities =sorted(authorities.items(), key=lambda x: x[1], reverse=True)[:50]
-  results = {
-    "hubs": topHubs,
-    "authorities": topAuthorities 
-  }
+  return topHubs, topAuthorities
+
+
+def pageRank(G):
+  pageRank = nx.pagerank(G, alpha=0.85, max_iter=500)
+  topPageRank = sorted(
+    pageRank.items(),
+    key=lambda x: x[1],
+    reverse=True
+  )[:50]
+
+  return topPageRank
+
+def runHitsPagerank(G, outputPath="hitsMetrics.json"):
+  results = {}
+  print("Running hits")
+  topHubs, topAuthorities = HITS(G)
+
+  results["hubs"] = topHubs
+  results["authorities"] = topAuthorities 
+  
+  print("Running hits")
+  pr = pageRank(G)
+  results["pageRank"] = pr
+
+  print("Writing ot file")
   with open(outputPath, "w") as f:
     json.dump(results, f, indent=2, default=str)
+
+def compareHits():
+  with open("hitsMetrics.json", "r") as f:
+    hits = json.load(f)
+
+  hubs = set(str(user) for user, score in hits["hubs"])
+  authorities = set(str(user) for user, score in hits["authorities"])
+
+  overlap = hubs & authorities
+
+  print("Top 50 hubs:", len(hubs))
+  print("Top 50 authorities:", len(authorities))
+  print("Users appearing in both lists:", len(overlap))
+  print("Overlapping users:", overlap)
+
+
 
 
 # 4. Longitudinal analysis

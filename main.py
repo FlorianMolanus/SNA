@@ -213,7 +213,8 @@ if __name__ == "__main__":
 
   # egoIds = findEgoIds(folder)
   # print(clusteringCoefficient(G))
-  writeMetrics(G, includeDiameter=False)
+  # writeMetrics(G, includeDiameter=False)
+  runHitsPagerank(G)
   # runCommunityAnalysis(G, U)
   # HITS(G)
   

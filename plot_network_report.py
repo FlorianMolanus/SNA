@@ -334,6 +334,165 @@ def plot_hits(hits: dict[str, Any], out: Path, top_n: int) -> None:
         write_csv(out / f"{filename}.csv", ["node_id", "score"], [[n, s] for n, s in reversed(pairs)])
 
 
+
+def plot_leiden_community_network(
+    comm: dict[str, Any],
+    out: Path,
+    top_communities: int = 20,
+) -> None:
+    """Plot the saved Leiden community graph without rerunning analysis."""
+    from collections import Counter
+    import math
+    import networkx as nx
+    import matplotlib.pyplot as plt
+
+    leiden = comm.get("leiden", {})
+    bridge_results = comm.get("bridges", {})
+    community_data = bridge_results.get("communityBridgeMetrics", {})
+
+    membership = leiden.get("membership", {})
+    pairs = community_data.get("communityPairs", [])
+
+    if not membership:
+        print("[skip] Missing leiden.membership in commMetrics.json")
+        return
+
+    if not pairs:
+        print("[skip] Missing communityBridgeMetrics.communityPairs")
+        return
+
+    # Keep IDs as integers throughout; this avoids string/int mismatches.
+    sizes = Counter(int(cid) for cid in membership.values())
+    largest_ids = {
+        cid for cid, _ in sizes.most_common(top_communities)
+    }
+
+    graph = nx.Graph()
+
+    for cid in largest_ids:
+        graph.add_node(cid, size=sizes[cid])
+
+    for item in pairs:
+        a = int(item["communityA"])
+        b = int(item["communityB"])
+
+        if a not in largest_ids or b not in largest_ids:
+            continue
+
+        graph.add_edge(
+            a,
+            b,
+            weight=int(item["numEdges"]),
+            bridge_count=int(item.get("numBridgeEdges", 0)),
+        )
+
+    print(
+        f"[community plot] Saved communities: {len(sizes):,}; "
+        f"saved community pairs: {len(pairs):,}; "
+        f"plot nodes: {graph.number_of_nodes():,}; "
+        f"plot edges: {graph.number_of_edges():,}"
+    )
+
+    if graph.number_of_edges() == 0:
+        print(
+            "[warning] No saved community pairs matched the selected IDs. "
+            "Check the JSON IDs and membership mapping."
+        )
+        return
+
+    # Layout only the small community graph.
+    pos = nx.spring_layout(
+        graph,
+        seed=2222,
+        weight="weight",
+        iterations=150,
+    )
+
+    max_size = max(sizes[cid] for cid in graph.nodes())
+    node_sizes = [
+        150 + 1000 * math.sqrt(graph.nodes[cid]["size"] / max_size)
+        for cid in graph.nodes()
+    ]
+
+    max_weight = max(
+        data["weight"] for _, _, data in graph.edges(data=True)
+    )
+
+    def width(data):
+        return 0.5 + 2.0 * (
+            math.log1p(data["weight"]) / math.log1p(max_weight)
+        )
+
+    normal_edges = [
+        (u, v) for u, v, d in graph.edges(data=True)
+        if d["bridge_count"] == 0
+    ]
+    bridge_edges = [
+        (u, v) for u, v, d in graph.edges(data=True)
+        if d["bridge_count"] > 0
+    ]
+
+    fig, ax = plt.subplots(figsize=(15, 11))
+
+    nx.draw_networkx_edges(
+        graph, pos,
+        edgelist=normal_edges,
+        width=[width(graph[u][v]) for u, v in normal_edges],
+        edge_color="gray",
+        alpha=0.55,
+        ax=ax,
+    )
+
+    nx.draw_networkx_edges(
+        graph, pos,
+        edgelist=bridge_edges,
+        width=[width(graph[u][v]) + 1 for u, v in bridge_edges],
+        edge_color="red",
+        alpha=0.95,
+        ax=ax,
+    )
+
+    nx.draw_networkx_nodes(
+        graph, pos,
+        node_size=node_sizes,
+        node_color=[graph.nodes[cid]["size"] for cid in graph.nodes()],
+        cmap=plt.cm.viridis,
+        edgecolors="black",
+        linewidths=0.6,
+        ax=ax,
+    )
+
+    labels = {
+        cid: f"C{cid}\n{graph.nodes[cid]['size']:,} users"
+        for cid in graph.nodes()
+    }
+    nx.draw_networkx_labels(
+        graph, pos, labels=labels, font_size=8, ax=ax
+    )
+
+    ax.set_title(
+        f"Leiden community network: largest {len(graph)} communities\n"
+        "Node size = number of users | Edge width = original edges "
+        "| Red = structural bridge edge(s)"
+    )
+    ax.axis("off")
+    fig.tight_layout()
+
+    out.mkdir(parents=True, exist_ok=True)
+    fig.savefig(
+        out / "18_leiden_community_network.png",
+        dpi=220,
+        bbox_inches="tight",
+    )
+    fig.savefig(
+        out / "18_leiden_community_network.pdf",
+        bbox_inches="tight",
+    )
+    plt.close(fig)
+
+    print(f"[community plot] Saved PNG and PDF to {out}")
+
+
 def write_report_summary(metrics: dict[str, Any], comm: dict[str, Any], hits: dict[str, Any], out: Path) -> None:
     leiden = comm.get("leiden") or {}
     clique = comm.get("cliques") or {}
@@ -398,6 +557,7 @@ def main() -> None:
     plot_centrality(metrics, args.out_dir, args.top_n)
     plot_clustering_density(metrics, args.out_dir)
     plot_community_sizes(comm, args.out_dir)
+    plot_leiden_community_network(comm, args.out_dir)
     plot_cliques(comm, args.out_dir)
     plot_bridge_metrics(comm, args.out_dir, args.top_n)
     plot_homophily(comm, args.out_dir)

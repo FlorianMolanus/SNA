@@ -111,6 +111,63 @@ def bridges(U: nx.Graph, communities=None, topN=100, betweennessSamples=150):
     results["topParticipationCoefficient"] = sorted(participation.items(), key=lambda x: x[1], reverse=True)[:topN]
     results["topByNumNeighbourCommunities"] = sorted(neighbourComms.items(), key=lambda x: x[1], reverse=True)[:topN]
 
+
+    # Save connections between every pair of Leiden communities.
+    # This uses the graph already in memory; no extra graph algorithm
+    # such as betweenness or Leiden is rerun.
+
+    pairEdges = Counter()
+    pairBridgeEdges = Counter()
+
+    for u, v in U.edges():
+      cu = commOf[u]
+      cv = commOf[v]
+
+      if cu != cv:
+        pair = tuple(sorted((cu, cv)))
+        pairEdges[pair] += 1
+
+    for u, v in bridgeEdges:
+      cu = commOf[u]
+      cv = commOf[v]
+
+      if cu != cv:
+        pair = tuple(sorted((cu, cv)))
+        pairBridgeEdges[pair] += 1
+
+    # Store every connected community pair, sorted by edge count.
+    communityPairs = []
+    for (ca, cb), edgeCount in sorted(
+      pairEdges.items(),
+      key=lambda item: item[1],
+      reverse=True,
+    ):
+      bridgeCount = pairBridgeEdges[(ca, cb)]
+
+      communityPairs.append({
+        "communityA": ca,
+        "communityB": cb,
+        "sizeA": len(communities[ca]),
+        "sizeB": len(communities[cb]),
+        "numEdges": edgeCount,
+        "numBridgeEdges": bridgeCount,
+        "bridgeShare": bridgeCount / edgeCount,
+      })
+
+    results["communityBridgeMetrics"] = {
+      "numCommunities": len(communities),
+      "numCommunityPairs": len(communityPairs),
+      "numCrossCommunityEdges": sum(pairEdges.values()),
+      "numCrossCommunityBridgeEdges": sum(pairBridgeEdges.values()),
+      "crossCommunityBridgeShare": (
+          sum(pairBridgeEdges.values()) / sum(pairEdges.values())
+          if pairEdges else 0
+      ),
+      "communityPairs": communityPairs,
+      "topCommunityPairsByEdgeCount": communityPairs[:topN],
+    }
+
+
   return results
 
 

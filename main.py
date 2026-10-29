@@ -214,5 +214,6 @@ if __name__ == "__main__":
   # egoIds = findEgoIds(folder)
   # print(clusteringCoefficient(G))
   # writeMetrics(G)
-  runCommunityAnalysis(G, U)
+  # runCommunityAnalysis(G, U)
+  HITS(G)
 

@@ -269,7 +269,32 @@ def compareHits():
   print("Users appearing in both lists:", len(overlap))
   print("Overlapping users:", overlap)
 
-compareHits()
+
+
+def findTop150Users(metricFile="metrics.json", hitsFile="hitsMetrics.json"):
+  with open("hitsMetrics.json", "r") as f:
+    hits = json.load(f)
+
+  with open("metrics.json", "r") as f:
+    m = json.load(f)
+
+  authorities = set(str(user) for user, score in hits["authorities"])
+  pagerank = set(str(user) for user, score in hits["pageRank"])
+  indegreeCentrality = set(list(str(user) for user, _ in m["inDegreeCentrality"].items())[:50])
+
+  top150 = authorities.union(pagerank).union(indegreeCentrality)
+
+  with open("bestPosters.txt", "w") as f:
+    for account in top150:
+      f.write(account + "\n")
+
+  print(len(top150))
+
+
+  
+findTop150Users()
+
+# compareHits()
 
 
 

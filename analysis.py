@@ -4,7 +4,8 @@ import igraph as ig
 import random
 import json
 import sys
-
+from itertools import combinations
+import numpy as np
 
 
 # 1. Network statistics - metrics
@@ -295,12 +296,86 @@ def readBestPosters(posterfile="bestPosters.txt"):
       posters.append(line.strip())
   return posters
 
-def findTopUsersHashTags(posterFile="bestPosters.txt"):
-  print(readBestPosters())
+def findTopUsersHashTags(hashtagfile="hashtags.json"):
+  with open(hashtagfile, "r") as f:
+    h = json.load(f)
+
+  numberOfAccounts = len(h)
+  print(numberOfAccounts)
+
+  hashtagCounts = Counter(hashtag for hashtags in h.values() for hashtag in hashtags) 
+
+  for hashtag, count in hashtagCounts.most_common(20):
+    print(f"{hashtag}: {count}")
+
+  import matplotlib.pyplot as plt
+
+  # Count hashtags per account
+  hashtags_per_account = [len(hashtags) for hashtags in h.values()]
+
+  print(f"Mean hashtags per account: {sum(hashtags_per_account) / len(hashtags_per_account):.2f}")
+  print(f"Minimum: {min(hashtags_per_account)}")
+  print(f"Maximum: {max(hashtags_per_account)}")
+
+  # Plot distribution
+  plt.figure(figsize=(10, 6))
+  plt.hist(hashtags_per_account, bins=15, edgecolor="black")
+
+  plt.xlabel("Number of hashtags used")
+  plt.ylabel("Number of accounts")
+  plt.title("Distribution of Hashtag Usage Across Accounts")
+  plt.grid(axis="y", alpha=0.3)
+  plt.show()
+
+
+  similarities = []
+
+  user_ids = list(h.keys())
+
+  for user1, user2 in combinations(user_ids, 2):
+    hashtags1 = set(h[user1])
+    hashtags2 = set(h[user2])
+
+    union = hashtags1 | hashtags2
+    intersection = hashtags1 & hashtags2
+
+    # Handle accounts with no hashtags
+    if len(union) == 0:
+      similarity = 1.0
+    else:
+      similarity = len(intersection) / len(union)
+
+    similarities.append(similarity)
+
+    # print(f"Number of account pairs: {len(similarities)}")
+    # print(f"Mean similarity: {np.mean(similarities):.3f}")
+    # print(f"Median similarity: {np.median(similarities):.3f}")
+
+  plt.figure(figsize=(10, 6))
+  plt.hist(similarities, bins=20, edgecolor="black")
+
+  plt.xlabel("Jaccard Similarity")
+  plt.ylabel("Number of Account Pairs")
+  plt.title("Distribution of Hashtag Similarity Between Accounts")
+  plt.grid(axis="y", alpha=0.3)
+  plt.show()
+
+  identical_pairs = []
+
+  for user1, user2 in combinations(user_ids, 2):
+    if set(h[user1]) == set(h[user2]) and len(h[user1]) > 0:
+      identical_pairs.append((user1, user2))
+      print(user1, user2)
+
+  print(f"Number of identical account pairs: {len(identical_pairs)}")
+
+
+  # print(hashtagCounts)
 
 
 
 # compareHits()
 # findTop150Users()
 # findTopUsersHashTags()
+findTopUsersHashTags()
 

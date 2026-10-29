@@ -1,3 +1,6 @@
 *.pickle
 .pickle
 digraph.pickle
+__pycache__
+drawNetwork.py
+*.png

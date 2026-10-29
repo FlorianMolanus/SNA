@@ -4,6 +4,7 @@ import sys
 import networkx as nx
 import pickle
 import time
+from analysis import *
 
 
 # Find all ego ids
@@ -98,12 +99,12 @@ def parseEgofeat(path, featnames, egoId):
   return {egoId: featDict}
 
 # Construct the network by parsing all seperate ego networks and combining them. If network has already been constructed, load it.
-def loadEgoNetworks(folder, read, directed=True):
+def loadEgoNetworks(folder, read):
   if read:
-    G = pickle.load(open("digraph.pickle", "rb"))
+    print("reading network from file")
+    G: nx.DiGraph = pickle.load(open("digraph.pickle", "rb"))
     return G
-  GraphType = nx.DiGraph if directed else nx.Graph
-  G = GraphType()
+  G = nx.DiGraph()
 
   egoIds = findEgoIds(folder)
   print(f"Found {len(egoIds)} ego networks in {folder}")
@@ -153,16 +154,9 @@ if __name__ == "__main__":
 
   folder = "data/twitter"
   startTime = time.time()
-  G = loadEgoNetworks(folder, read=False)
+  G = loadEgoNetworks(folder, read=True)
   print("Loaded dataset in %s seconds" % (time.time() - startTime))
 
-  egoIds = findEgoIds(folder)
-  if egoIds:
-    sampleEgo = egoIds[0]
-    print(f"\nSample ego: {sampleEgo}")
-    print(f"  In graph: {sampleEgo in G}")
-    print(f"  Degree: {G.degree(sampleEgo)}")
-    print(f"  Circles known: {G.nodes[sampleEgo].get('circles', {})}")
-    feats = G.nodes[sampleEgo].get('features', {}).get(sampleEgo, {})
-    onFeats = [k for k, v in feats.items() if v == 1]
-    print(f"  Ego's own active features (sample): {onFeats[:5]}")
+  # egoIds = findEgoIds(folder)
+  print(centralityIndices(G))
+

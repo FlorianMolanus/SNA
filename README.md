@@ -8,7 +8,8 @@ For community metrics, the network is turned into an undirected graph. Both the 
 `metrics.json` contains the basic metrics about the dataset. It includes a diameter, which is an approximation due to the size of the dataset.
 
 ### Community metrics
-Community metrics are in `commMetrics.json`. Because the dataset is fairly large, some compromises have to be made. The minimum size to count as a clique is set to 55 here (based on core analysis the maximum size for a clique is 97)
+Community metrics are in `commMetrics.json`. Because the dataset is fairly large, some compromises have to be made. Based on core analysis, the maximum size for a clique is 97.
+`commMetricsOld.json` was generated with minimum size of 80 for the cliques, and a betweenness sample count of 80 for the bridges. `commMetrics` uses 60 and 200.
 
 ### Hits
 Hits is calculated and stored in `hitsMetrics.json`.

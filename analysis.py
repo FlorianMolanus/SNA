@@ -81,7 +81,7 @@ def homophily(G):
 
 
 # Pass communities to analyse bridges between communities rather than just bridges in general
-def bridges(U: nx.Graph, communities=None, topN=100, betweennessSamples=80):
+def bridges(U: nx.Graph, communities=None, topN=100, betweennessSamples=150):
   nodes = U.number_of_nodes()
   betweenness = nx.betweenness_centrality(U, k=betweennessSamples, seed=2222)
   articulation = set(nx.articulation_points(U))
@@ -141,7 +141,7 @@ def runCommunityAnalysis(G: nx.DiGraph, U: nx.Graph, outputPath="commMetrics.jso
   
 
   print("Calculating cliques...")
-  results["cliques"] = cliques(U, minSize=70)
+  results["cliques"] = cliques(U, minSize=60)
 
   print("homophily...")
   results["homophily"] = homophily(G)

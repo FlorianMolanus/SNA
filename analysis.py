@@ -288,15 +288,19 @@ def findTop150Users(metricFile="metrics.json", hitsFile="hitsMetrics.json"):
     for account in top150:
       f.write(account + "\n")
 
-  print(len(top150))
+def readBestPosters(posterfile="bestPosters.txt"):
+  with open("bestPosters.txt", "r") as f:
+    posters = []
+    for line in f.readlines():
+      posters.append(line.strip())
+  return posters
+
+def findTopUsersHashTags(posterFile="bestPosters.txt"):
+  print(readBestPosters())
 
 
-  
-findTop150Users()
 
 # compareHits()
+# findTop150Users()
+# findTopUsersHashTags()
 
-
-
-
-# 4. Longitudinal analysis

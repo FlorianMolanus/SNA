@@ -135,6 +135,49 @@ def parseFeat(path, featnames):
       result[nodeId] = featDict
   return result
 
+def parseFeatures(path, featnames, users):
+  userHashtags = {}
+  with open(path, "r") as f:
+    for line in f:
+      parts = line.strip().split()
+
+      if not parts:
+        continue
+
+      nodeId = parts[0]
+      if users and nodeId not in users:
+        continue
+      values = parts[1:]
+
+      hashtags = [
+        featnames[i] for i, value in enumerate(values) if value
+      ]
+
+      userHashtags[nodeId] = hashtags
+    return userHashtags
+
+
+def parseEgofeatures(path, featnames, egoId, users):
+  if users and egoId not in users:
+    return {}
+  userHashtags = {}
+  with open(path, "r") as f:
+    for line in f:
+      parts = line.strip().split()
+
+      if not parts:
+        continue
+
+      values = parts
+
+      hashtags = [
+        featnames[i] for i, value in enumerate(values) if value == "1"
+      ]
+
+      userHashtags[egoId] = hashtags
+    return userHashtags
+  
+
 # Get all features in the egofeat file
 def parseEgofeat(path, featnames, egoId):
   if not os.path.exists(path):
@@ -149,6 +192,28 @@ def parseEgofeat(path, featnames, egoId):
     featDict[name] = int(val)
   return {egoId: featDict}
 
+
+def getHashtags(folder, users):
+  print(users)
+  egoIds = findEgoIds(folder)
+  print(f"Found {len(egoIds)} ego networks in {folder}")
+
+  allHashtags = {}
+  for egoId in egoIds:
+    base = os.path.join(folder, egoId)
+    featnames = parseFeatnames(base + ".featnames")
+    egofeats = parseEgofeatures(base + ".egofeat", featnames, egoId, users)
+    userHashtags = parseFeatures(base + ".feat", featnames, users)
+    allHashtags.update(userHashtags)
+    allHashtags.update(egofeats)
+
+  return allHashtags
+
+def writeHashtags(hashtags, file="hashtags.json"):
+  print("writing hashtags")
+  with open(file, "w") as f:
+    json.dump(hashtags, f)
+  
 # Construct the network by parsing all seperate ego networks and combining them. If network has already been constructed, load it.
 def loadEgoNetworks(folder, read):
   if read:
@@ -208,8 +273,15 @@ if __name__ == "__main__":
 
   folder = "data/twitter"
   startTime = time.time()
-  G, U = loadEgoNetworks(folder, read=True)
+  # G, U = loadEgoNetworks(folder, read=True)
   print("Loaded dataset in %s seconds" % (time.time() - startTime))
+
+  users = readBestPosters()
+  print(users)
+  hashtags = getHashtags(folder, users)
+  writeHashtags(hashtags)
+
+  
 
   # egoIds = findEgoIds(folder)
   # print(clusteringCoefficient(G))

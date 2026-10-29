@@ -154,7 +154,8 @@ def loadEgoNetworks(folder, read):
   if read:
     print("reading network from file")
     G: nx.DiGraph = pickle.load(open("digraph.pickle", "rb"))
-    return G
+    U: nx.Graph = pickle.load(open("graph.pickle", "rb"))
+    return G, U
   G = nx.DiGraph()
 
   egoIds = findEgoIds(folder)
@@ -198,17 +199,20 @@ def loadEgoNetworks(folder, read):
 
   print(f"Combined graph: {G.number_of_nodes()} nodes, {G.number_of_edges()} edges")
   pickle.dump(G, open('digraph.pickle', "wb"))
-  return G
+  U = G.to_undirected()
+  pickle.dump(U, open('graph.pickle', "wb"))
+  return G, U
 
 
 if __name__ == "__main__":
 
   folder = "data/twitter"
   startTime = time.time()
-  G = loadEgoNetworks(folder, read=True)
+  G, U = loadEgoNetworks(folder, read=True)
   print("Loaded dataset in %s seconds" % (time.time() - startTime))
 
   # egoIds = findEgoIds(folder)
   # print(clusteringCoefficient(G))
-  writeMetrics(G)
+  # writeMetrics(G)
+  runCommunityAnalysis(G, U)
 

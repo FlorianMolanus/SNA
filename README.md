@@ -3,3 +3,14 @@ The dataset is created from ego nodes. The first ego node is 12831, the second i
 
 ### Basic metrics
 `metrics.json` contains the basic metrics about the dataset. It includes a diameter, which is an approximation due to the size of the dataset.
+
+### Community metrics
+Community metrics are in `commMetrics.json`. Because the dataset is fairly large, some compromises have to be made. The minimum size to count as a clique is set to 55 here (based on core analysis the maximum size for a clique is 97)
+
+### Hits
+Hits is calculated and stored in `hitsMetrics.json`.
+
+### Longitudinal analysis
+This is unfortunately not possible for our dataset, as there is no time data recorded. It could be worth looking for an extenstin elsewhere to compensate, but it's only 5 points so for now I am fine with skipping this.
+
+### Visualize the graphs

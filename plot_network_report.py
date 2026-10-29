@@ -1,0 +1,409 @@
+#!/usr/bin/env python3
+"""
+Create report-ready figures from metrics.json, commMetrics.json and hitsMetrics.json.
+
+This script reads precomputed JSON only; it does not load the graph or rerun
+NetworkX/igraph analyses.
+
+Usage:
+    python plot_network_report.py --data-dir . --out-dir report_figures
+
+Expected input files (missing files/sections are skipped):
+    metrics.json
+    commMetrics.json
+    hitsMetrics.json
+
+Outputs:
+    PNG and PDF versions of each figure, plus summary CSV files.
+"""
+from __future__ import annotations
+
+import argparse
+import csv
+import json
+import math
+from pathlib import Path
+from typing import Any
+
+import matplotlib
+matplotlib.use("Agg")  # works on servers/headless machines
+import matplotlib.pyplot as plt
+
+
+def load_json(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        print(f"[skip] Not found: {path}")
+        return {}
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+        if not isinstance(data, dict):
+            print(f"[skip] Expected a JSON object in {path}")
+            return {}
+        print(f"[loaded] {path}")
+        return data
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"[skip] Could not read {path}: {exc}")
+        return {}
+
+
+def save_figure(fig: plt.Figure, out_dir: Path, name: str) -> None:
+    fig.tight_layout()
+    fig.savefig(out_dir / f"{name}.png", dpi=220, bbox_inches="tight")
+    fig.savefig(out_dir / f"{name}.pdf", bbox_inches="tight")
+    plt.close(fig)
+    print(f"[figure] {name}")
+
+
+def write_csv(path: Path, headers: list[str], rows: list[list[Any]]) -> None:
+    with path.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(headers)
+        writer.writerows(rows)
+
+
+def numeric_items(mapping: Any) -> list[tuple[str, float]]:
+    if not isinstance(mapping, dict):
+        return []
+    result = []
+    for (key, value) in mapping.items():
+        try:
+            result.append((str(key), float(value)))
+        except (TypeError, ValueError):
+            continue
+    return result
+
+
+def top_pairs(value: Any) -> list[tuple[str, float]]:
+    """Parse JSON-serialized (node, score) pairs."""
+    if not isinstance(value, list):
+        return []
+    result = []
+    for item in value:
+        if isinstance(item, (list, tuple)) and len(item) >= 2:
+            try:
+                result.append((str(item[0]), float(item[1])))
+            except (TypeError, ValueError):
+                pass
+    return result
+
+
+def plot_degree_distributions(metrics: dict[str, Any], out: Path) -> None:
+    in_dist = numeric_items(metrics.get("inDegreeDistribution"))
+    out_dist = numeric_items(metrics.get("outDegreeDistribution"))
+    if not in_dist and not out_dist:
+        return
+
+    fig, ax = plt.subplots(figsize=(8.5, 5.5))
+    for label, values in [("In-degree", in_dist), ("Out-degree", out_dist)]:
+        if not values:
+            continue
+        values = sorted((int(float(k)), v) for k, v in values if float(k) >= 0)
+        xs = [x for x, y in values if x > 0 and y > 0]
+        ys = [y for x, y in values if x > 0 and y > 0]
+        if xs:
+            ax.plot(xs, ys, marker=".", markersize=3, linewidth=1, label=label)
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.set_xlabel("Degree (log scale)")
+    ax.set_ylabel("Number of nodes (log scale)")
+    ax.set_title("In-degree and out-degree distributions")
+    ax.grid(True, which="both", alpha=0.2)
+    ax.legend()
+    save_figure(fig, out, "01_degree_distributions")
+
+
+def plot_network_summary(metrics: dict[str, Any], comm: dict[str, Any], out: Path) -> None:
+    keys = [
+        ("Nodes", metrics.get("numNodes")),
+        ("Directed edges", metrics.get("numEdges")),
+        ("Weak components", metrics.get("numWeaklyConnectedComponents")),
+        ("Strong components", metrics.get("numStronglyConnectedComponents")),
+        ("Articulation points", (comm.get("bridges") or {}).get("numArticulationPoints")),
+        ("Bridge edges", (comm.get("bridges") or {}).get("numBridgeEdges")),
+    ]
+    keys = [(k, v) for k, v in keys if isinstance(v, (int, float))]
+    if not keys:
+        return
+    fig, ax = plt.subplots(figsize=(9, 5))
+    labels = [x[0] for x in keys]
+    vals = [x[1] for x in keys]
+    bars = ax.bar(labels, vals)
+    ax.set_title("Network summary statistics")
+    ax.set_ylabel("Count")
+    ax.tick_params(axis="x", rotation=25)
+    ax.bar_label(bars, labels=[f"{v:,.0f}" for v in vals], padding=3, fontsize=8)
+    ax.margins(y=0.15)
+    save_figure(fig, out, "02_network_summary")
+
+
+def plot_component_sizes(metrics: dict[str, Any], out: Path) -> None:
+    series = [
+        ("Weakly connected components", metrics.get("weaklyConnectedComponentSizes")),
+        ("Strongly connected components", metrics.get("stronglyConnectedComponentSizes")),
+    ]
+    fig, ax = plt.subplots(figsize=(8.5, 5.5))
+    plotted = False
+    for label, sizes in series:
+        if isinstance(sizes, list) and sizes:
+            ys = sorted((float(x) for x in sizes), reverse=True)
+            ax.plot(range(1, len(ys) + 1), ys, marker=".", markersize=2,
+                    linewidth=1, label=label)
+            plotted = True
+    if not plotted:
+        plt.close(fig)
+        return
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.set_xlabel("Component rank (largest first, log scale)")
+    ax.set_ylabel("Number of nodes in component (log scale)")
+    ax.set_title("Connected-component size distributions")
+    ax.grid(True, which="both", alpha=0.2)
+    ax.legend()
+    save_figure(fig, out, "03_component_sizes")
+
+
+def plot_centrality(metrics: dict[str, Any], out: Path, top_n: int) -> None:
+    specs = [
+        ("degreeCentrality", "Degree centrality", "04_top_degree_centrality"),
+        ("inDegreeCentrality", "In-degree centrality", "05_top_in_degree_centrality"),
+        ("outDegreeCentrality", "Out-degree centrality", "06_top_out_degree_centrality"),
+    ]
+    for key, title, filename in specs:
+        values = numeric_items(metrics.get(key))
+        if not values:
+            continue
+        values.sort(key=lambda p: p[1], reverse=True)
+        values = values[:top_n]
+        values.reverse()
+        fig, ax = plt.subplots(figsize=(9, max(4.5, 0.24 * len(values))))
+        ax.barh([x[0] for x in values], [x[1] for x in values])
+        ax.set_xlabel("Centrality")
+        ax.set_ylabel("Node ID")
+        ax.set_title(f"Top {len(values)} nodes by {title.lower()}")
+        ax.tick_params(axis="y", labelsize=7)
+        save_figure(fig, out, filename)
+        write_csv(out / f"{filename}.csv", ["node_id", "score"], [[n, s] for n, s in reversed(values)])
+
+
+def plot_clustering_density(metrics: dict[str, Any], out: Path) -> None:
+    vals = [
+        ("Average clustering", metrics.get("averageClustering")),
+        ("Transitivity", metrics.get("transitivity")),
+        ("Density", metrics.get("density")),
+    ]
+    vals = [(k, float(v)) for k, v in vals if isinstance(v, (int, float))]
+    if not vals:
+        return
+    fig, ax = plt.subplots(figsize=(7.5, 4.8))
+    bars = ax.bar([x[0] for x in vals], [x[1] for x in vals])
+    ax.set_ylabel("Value")
+    ax.set_title("Clustering and density")
+    ax.bar_label(bars, labels=[f"{v:.4g}" for _, v in vals], padding=3)
+    ax.margins(y=0.2)
+    save_figure(fig, out, "07_clustering_density")
+
+
+def plot_community_sizes(comm: dict[str, Any], out: Path) -> None:
+    leiden = comm.get("leiden") or {}
+    membership = leiden.get("membership")
+    sizes: list[int] = []
+    if isinstance(membership, dict) and membership:
+        counts: dict[str, int] = {}
+        for community_id in membership.values():
+            counts[str(community_id)] = counts.get(str(community_id), 0) + 1
+        sizes = sorted(counts.values(), reverse=True)
+    elif isinstance(leiden.get("largestSizes"), list):
+        sizes = sorted([int(x) for x in leiden["largestSizes"]], reverse=True)
+
+    if not sizes:
+        return
+    fig, ax = plt.subplots(figsize=(8.5, 5.5))
+    ax.plot(range(1, len(sizes) + 1), sizes, marker=".", markersize=3, linewidth=1)
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.set_xlabel("Community rank (largest first, log scale)")
+    ax.set_ylabel("Community size (log scale)")
+    modularity = leiden.get("modularity")
+    title = "Leiden community size distribution"
+    if isinstance(modularity, (int, float)):
+        title += f" (modularity = {modularity:.3f})"
+    ax.set_title(title)
+    ax.grid(True, which="both", alpha=0.2)
+    save_figure(fig, out, "08_leiden_community_sizes")
+    write_csv(out / "leiden_community_sizes.csv",
+              ["rank", "community_size"],
+              [[i, s] for i, s in enumerate(sizes, 1)])
+
+
+def plot_cliques(comm: dict[str, Any], out: Path) -> None:
+    cliques = comm.get("cliques") or {}
+    values = numeric_items(cliques.get("sizeDistribution"))
+    if values:
+        values.sort(key=lambda p: float(p[0]))
+        fig, ax = plt.subplots(figsize=(8.5, 5.2))
+        ax.bar([x[0] for x in values], [x[1] for x in values])
+        ax.set_xlabel("Maximal clique size")
+        ax.set_ylabel("Number of maximal cliques")
+        ax.set_title("Maximal clique size distribution")
+        ax.tick_params(axis="x", rotation=45)
+        save_figure(fig, out, "09_maximal_clique_sizes")
+        write_csv(out / "maximal_clique_size_distribution.csv",
+                  ["clique_size", "number_of_cliques"], values)
+
+    top = top_pairs(cliques.get("topNodesByCliqueCount"))
+    if top:
+        top = top[:20][::-1]
+        fig, ax = plt.subplots(figsize=(9, max(4.5, 0.25 * len(top))))
+        ax.barh([x[0] for x in top], [x[1] for x in top])
+        ax.set_xlabel("Number of maximal cliques")
+        ax.set_ylabel("Node ID")
+        ax.set_title("Nodes appearing in the most maximal cliques")
+        ax.tick_params(axis="y", labelsize=7)
+        save_figure(fig, out, "10_top_clique_membership")
+
+
+def plot_bridge_metrics(comm: dict[str, Any], out: Path, top_n: int) -> None:
+    data = comm.get("bridges") or {}
+    specs = [
+        ("topBetweenness", "Top nodes by sampled betweenness", "11_top_betweenness"),
+        ("topArticulationPointsByBetweenness",
+         "Articulation points ranked by sampled betweenness",
+         "12_articulation_points_betweenness"),
+        ("topParticipationCoefficient", "Top participation coefficients", "13_top_participation"),
+        ("topByNumNeighbourCommunities", "Nodes connected to the most communities",
+         "14_top_neighbour_communities"),
+    ]
+    for key, title, filename in specs:
+        pairs = top_pairs(data.get(key))
+        if not pairs:
+            continue
+        pairs = pairs[:top_n][::-1]
+        fig, ax = plt.subplots(figsize=(9, max(4.5, 0.24 * len(pairs))))
+        ax.barh([x[0] for x in pairs], [x[1] for x in pairs])
+        ax.set_xlabel("Score" if "Coefficient" in title or "betweenness" in title.lower()
+                      else "Number of communities")
+        ax.set_ylabel("Node ID")
+        ax.set_title(title)
+        ax.tick_params(axis="y", labelsize=7)
+        save_figure(fig, out, filename)
+        write_csv(out / f"{filename}.csv", ["node_id", "value"], [[n, v] for n, v in reversed(pairs)])
+
+    summary = []
+    for key in ("numArticulationPoints", "numBridgeEdges", "crossCommunityEdges",
+                "crossCommunityEdgeShare"):
+        if key in data:
+            summary.append([key, data[key]])
+    if summary:
+        write_csv(out / "bridge_summary.csv", ["metric", "value"], summary)
+
+
+def plot_homophily(comm: dict[str, Any], out: Path) -> None:
+    homophily = comm.get("homophily") or {}
+    value = homophily.get("degreeAssortivity")
+    if not isinstance(value, (int, float)) or not math.isfinite(value):
+        return
+    fig, ax = plt.subplots(figsize=(6.5, 2.5))
+    ax.barh(["Degree assortativity"], [value])
+    ax.axvline(0, linewidth=1)
+    ax.set_xlim(-1, 1)
+    ax.set_xlabel("Assortativity coefficient (-1 to 1)")
+    ax.set_title("Degree assortativity")
+    ax.text(value, 0, f"  {value:.3f}", va="center", ha="left" if value >= 0 else "right")
+    save_figure(fig, out, "15_degree_assortativity")
+
+
+def plot_hits(hits: dict[str, Any], out: Path, top_n: int) -> None:
+    for key, title, filename in [
+        ("hubs", "Top HITS hubs", "16_top_hits_hubs"),
+        ("authorities", "Top HITS authorities", "17_top_hits_authorities"),
+    ]:
+        pairs = top_pairs(hits.get(key))
+        if not pairs:
+            continue
+        pairs = pairs[:top_n][::-1]
+        fig, ax = plt.subplots(figsize=(9, max(4.5, 0.24 * len(pairs))))
+        ax.barh([x[0] for x in pairs], [x[1] for x in pairs])
+        ax.set_xlabel("HITS score")
+        ax.set_ylabel("Node ID")
+        ax.set_title(title)
+        ax.tick_params(axis="y", labelsize=7)
+        save_figure(fig, out, filename)
+        write_csv(out / f"{filename}.csv", ["node_id", "score"], [[n, s] for n, s in reversed(pairs)])
+
+
+def write_report_summary(metrics: dict[str, Any], comm: dict[str, Any], hits: dict[str, Any], out: Path) -> None:
+    leiden = comm.get("leiden") or {}
+    clique = comm.get("cliques") or {}
+    bridge = comm.get("bridges") or {}
+    rows = [
+        ("Nodes", metrics.get("numNodes", "")),
+        ("Directed edges", metrics.get("numEdges", "")),
+        ("Average clustering", metrics.get("averageClustering", "")),
+        ("Transitivity", metrics.get("transitivity", "")),
+        ("Directed density", metrics.get("density", "")),
+        ("Weakly connected components", metrics.get("numWeaklyConnectedComponents", "")),
+        ("Strongly connected components", metrics.get("numStronglyConnectedComponents", "")),
+        ("Approximate diameter of largest SCC", metrics.get("diameterLargestSCC", "")),
+        ("Leiden communities", leiden.get("numCommunities", "")),
+        ("Leiden modularity", leiden.get("modularity", "")),
+        ("Leiden singleton communities", leiden.get("numSingletons", "")),
+        ("Largest maximal clique size", clique.get("largestCliqueSize", "")),
+        ("Number of maximal cliques (size >= configured minimum)", clique.get("numMaximalCliques", "")),
+        ("Articulation points", bridge.get("numArticulationPoints", "")),
+        ("Bridge edges", bridge.get("numBridgeEdges", "")),
+        ("Cross-community edges", bridge.get("crossCommunityEdges", "")),
+        ("Cross-community edge share", bridge.get("crossCommunityEdgeShare", "")),
+        ("Degree assortativity", (comm.get("homophily") or {}).get("degreeAssortivity", "")),
+        ("Top HITS hub available", bool(hits.get("hubs"))),
+        ("Top HITS authority available", bool(hits.get("authorities"))),
+    ]
+    write_csv(out / "report_summary.csv", ["metric", "value"], [[k, v] for k, v in rows])
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--data-dir", type=Path, default=Path("."),
+                        help="Folder containing the JSON input files (default: current directory)")
+    parser.add_argument("--out-dir", type=Path, default=Path("report_figures"),
+                        help="Output folder (default: report_figures)")
+    parser.add_argument("--top-n", type=int, default=20,
+                        help="Number of nodes in top-node plots (default: 20)")
+    args = parser.parse_args()
+    args.out_dir.mkdir(parents=True, exist_ok=True)
+
+    metrics = load_json(args.data_dir / "metrics.json")
+    comm = load_json(args.data_dir / "commMetrics.json")
+    hits = load_json(args.data_dir / "hitsMetrics.json")
+
+    if not (metrics or comm or hits):
+        raise SystemExit("No input JSON files found. Check --data-dir.")
+
+    plt.rcParams.update({
+        "figure.dpi": 120,
+        "savefig.dpi": 220,
+        "font.size": 10,
+        "axes.titlesize": 12,
+        "axes.labelsize": 10,
+        "legend.fontsize": 9,
+        "pdf.fonttype": 42,
+        "ps.fonttype": 42,
+    })
+
+    plot_degree_distributions(metrics, args.out_dir)
+    plot_network_summary(metrics, comm, args.out_dir)
+    plot_component_sizes(metrics, args.out_dir)
+    plot_centrality(metrics, args.out_dir, args.top_n)
+    plot_clustering_density(metrics, args.out_dir)
+    plot_community_sizes(comm, args.out_dir)
+    plot_cliques(comm, args.out_dir)
+    plot_bridge_metrics(comm, args.out_dir, args.top_n)
+    plot_homophily(comm, args.out_dir)
+    plot_hits(hits, args.out_dir, args.top_n)
+    write_report_summary(metrics, comm, hits, args.out_dir)
+
+    print(f"\nFinished. Figures and tables are in: {args.out_dir.resolve()}")
+
+
+if __name__ == "__main__":
+    main()

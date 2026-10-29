@@ -1,0 +1,21 @@
+metric,value
+Nodes,81306
+Directed edges,1762504
+Average clustering,0.40255396975627494
+Transitivity,0.22002298571075724
+Directed density,0.00026661848817228535
+Weakly connected components,5038
+Strongly connected components,12472
+Approximate diameter of largest SCC,18
+Leiden communities,5113
+Leiden modularity,0.8113462098533528
+Leiden singleton communities,5037
+Largest maximal clique size,71
+Number of maximal cliques (size >= configured minimum),269562
+Articulation points,202
+Bridge edges,1
+Cross-community edges,173537
+Cross-community edge share,0.12982843856047593
+Degree assortativity,-0.02177059597459032
+Top HITS hub available,True
+Top HITS authority available,True

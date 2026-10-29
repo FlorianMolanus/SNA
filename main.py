@@ -5,8 +5,59 @@ import networkx as nx
 import pickle
 import time
 from analysis import *
+import json
 
 
+
+def jsonableDict(d):
+  return {str(k): v for k, v in d.items()}
+
+def writeMetrics(G, outputPath="metrics.json", includeDiameter=True):
+  results = {}
+
+  print("Calculating nodes and edges")
+  numNodes, numEdges = nodesAndEdges(G)
+  results["numNodes"] = numNodes
+  results["numEdges"] = numEdges
+
+  print("Calculating degree distribution")
+  inDist, outDist = degreeDistribution(G)
+  # {degree: number of nodes with that degree}
+  results["inDegreeDistribution"] = jsonableDict(dict(sorted(inDist.items())))
+  results["outDegreeDistribution"] = jsonableDict(dict(sorted(outDist.items())))
+
+  print("Calculating degree centrality")
+  degC, inDegC, outDegC = centralityIndices(G)
+  results["degreeCentrality"] = jsonableDict(degC)
+  results["inDegreeCentrality"] = jsonableDict(inDegC)
+  results["outDegreeCentrality"] = jsonableDict(outDegC)
+
+  print("Calculating clustering coefficients")
+  avgClustering, transitivity = clusteringCoefficient(G)
+  results["averageClustering"] = avgClustering
+  results["transitivity"] = transitivity
+
+  print("Calculating density")
+  results["density"] = density(G)
+
+  print("Calculating number of connected components")
+  numWeak, numStrong, weakSizes, strongSizes = numberOfConnectedComponents(G)
+  results["numWeaklyConnectedComponents"] = numWeak
+  results["numStronglyConnectedComponents"] = numStrong
+  results["weaklyConnectedComponentSizes"] = weakSizes
+  results["stronglyConnectedComponentSizes"] = strongSizes
+
+  print("calculating diameter")
+  results["diameterLargestSCC"] = networkDiameter(G) if includeDiameter else None
+
+  print("writing JSON")
+  with open(outputPath, "w") as f:
+    json.dump(results, f, indent=2)
+ 
+  return results
+
+
+  
 # Find all ego ids
 def findEgoIds(folder):
   edgeFiles = glob.glob(os.path.join(folder, "*.edges"))
@@ -158,5 +209,6 @@ if __name__ == "__main__":
   print("Loaded dataset in %s seconds" % (time.time() - startTime))
 
   # egoIds = findEgoIds(folder)
-  print(clusteringCoefficient(G))
+  # print(clusteringCoefficient(G))
+  writeMetrics(G)
 

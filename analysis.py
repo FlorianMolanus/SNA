@@ -28,9 +28,11 @@ def clusteringCoefficient(G):
   return averageClustering, transitivity
 
 def networkDiameter(G):
+  # Takes too long
   largest = max(nx.strongly_connected_components(G), key=len)
   H = G.subgraph(largest)
-  diameter = nx.diameter(H)
+  # diameter = nx.diameter(H)
+  diameter = nx.approximation.diameter(H)
   return diameter
 
 def density(G):
@@ -44,3 +46,34 @@ def numberOfConnectedComponents(G):
   weakSizes = sorted((len(c) for c in weak), reverse=True)
   strongSizes = sorted((len(c) for c in strong), reverse=True)
   return numWeak, numStrong, weakSizes, strongSizes
+
+# 2. Communities
+def cliques(U, minSize=3, topN=20, maxCliques=None):
+  sizeCounts = Counter()
+  membership = Counter()
+  largest = []
+  total = 0
+  for clique in nx.find_cliques(U):
+    total += 1
+    k = len(clique)
+    sizeCounts[k] += 1
+    if k > len(largest):
+      largest = clique
+    if k >= minSize:
+      membership.update(clique)
+    if maxCliques and total >= maxCliques:
+      break
+  return {
+    "numMaximalCliques": total,
+    "truncated": bool(maxCliques and total >= maxCliques),
+    "sizeDistribution": dict(sorted(sizeCounts.items())),
+    "largestCliqueSize": len(largest),
+    "largestClique": list(largest),
+    "topNodesByCliqueCount": membership.most_common(topN),
+  }
+
+def homophily(G):
+  return {"degreeAssortivity": nx.degree_assortativity_coefficient(G)}
+
+
+

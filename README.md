@@ -1,3 +1,6 @@
+### Warning
+Unfortunately, due to time constraints, the code for this analysis is not structured particularly thoughtfully. In general though, `main.py` is reponsible for reading the data, `analysis.py` contains computationally expensive functions for data analysis, which write to various `.json` files. `plot_network_report.py` is responsible for (most of) the plotting.
+
 ### Dataset
 The dataset is created from ego nodes. The first ego node is 12831, the second is 78813, etc. These ego nodes are the nodes the researchers sampled. Edges are people that follow each other: a b means a follows b. The ego node follows every account that occurs in their .edges file. Circles are the circles that they are a part of. The feat files define the hashtags that people have used.
 
@@ -18,3 +21,4 @@ Hits is calculated and stored in `hitsMetrics.json`.
 This is unfortunately not possible for our dataset, as there is no time data recorded. It could be worth looking for an extenstin elsewhere to compensate, but it's only 5 points so for now I am fine with skipping this.
 
 ### Visualize the graphs
+Visualization is largely done in `plot_network_report.py`

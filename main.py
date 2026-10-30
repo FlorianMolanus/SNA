@@ -199,15 +199,34 @@ def getHashtags(folder, users):
   print(f"Found {len(egoIds)} ego networks in {folder}")
 
   allHashtags = {}
+  duplicateAccounts = 0
+  conflictingAccounts = {}
   for egoId in egoIds:
     base = os.path.join(folder, egoId)
     featnames = parseFeatnames(base + ".featnames")
     egofeats = parseEgofeatures(base + ".egofeat", featnames, egoId, users)
     userHashtags = parseFeatures(base + ".feat", featnames, users)
-    allHashtags.update(userHashtags)
-    allHashtags.update(egofeats)
+
+    currentUsers = {**userHashtags, **egofeats}
+
+    for userId, hashtags in currentUsers.items():
+      if userId not in allHashtags:
+        allHashtags[userId] = set()
+
+      allHashtags[userId].update(hashtags)
+
+
+  allHashtags = {
+    userId: list(hashtags)
+    for userId, hashtags in allHashtags.items()
+  }
+  
+  print(f"Unique accounts: {len(allHashtags)}")
 
   return allHashtags
+    # allHashtags.update(userHashtags)
+    # allHashtags.update(egofeats)
+
 
 def writeHashtags(hashtags, file="hashtags.json"):
   print("writing hashtags")

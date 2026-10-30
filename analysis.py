@@ -6,6 +6,13 @@ import json
 import sys
 from itertools import combinations
 import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+from scipy.spatial.distance import squareform
+from scipy.cluster.hierarchy import linkage
+import seaborn as sns
+import pandas as pd
 
 
 # 1. Network statistics - metrics
@@ -296,50 +303,61 @@ def readBestPosters(posterfile="bestPosters.txt"):
       posters.append(line.strip())
   return posters
 
+
 def findTopUsersHashTags(hashtagfile="hashtags.json"):
   with open(hashtagfile, "r") as f:
     h = json.load(f)
 
   numberOfAccounts = len(h)
-  print(numberOfAccounts)
+  print(f"Number of accounts: {numberOfAccounts}")
 
-  hashtagCounts = Counter(hashtag for hashtags in h.values() for hashtag in hashtags) 
+  # Count hashtag occurrences
+  hashtagCounts = Counter(
+    hashtag for hashtags in h.values() for hashtag in hashtags
+  )
 
+  print("\nMost common hashtags:")
   for hashtag, count in hashtagCounts.most_common(20):
     print(f"{hashtag}: {count}")
 
-  import matplotlib.pyplot as plt
-
   # Count hashtags per account
-  hashtags_per_account = [len(hashtags) for hashtags in h.values()]
+  hashtags_per_account = [len(set(hashtags)) for hashtags in h.values()]
 
-  print(f"Mean hashtags per account: {sum(hashtags_per_account) / len(hashtags_per_account):.2f}")
+  print(f"\nMean hashtags per account: {np.mean(hashtags_per_account):.2f}")
+  print(f"Median hashtags per account: {np.median(hashtags_per_account):.2f}")
   print(f"Minimum: {min(hashtags_per_account)}")
   print(f"Maximum: {max(hashtags_per_account)}")
 
-  # Plot distribution
+  # Plot hashtag distribution
   plt.figure(figsize=(10, 6))
   plt.hist(hashtags_per_account, bins=15, edgecolor="black")
 
-  plt.xlabel("Number of hashtags used")
+  plt.xlabel("Number of unique hashtags used")
   plt.ylabel("Number of accounts")
   plt.title("Distribution of Hashtag Usage Across Accounts")
   plt.grid(axis="y", alpha=0.3)
-  plt.show()
+  plt.savefig("report_figures/22_hashtag_numbers_distribution")
 
+  # Prepare account IDs and hashtag sets
+  user_ids = list(h.keys())
+  hashtag_sets = [set(h[user_id]) for user_id in user_ids]
+
+  n = len(user_ids)
+
+  # Initialize similarity matrix
+  similarity_matrix = np.zeros((n, n))
 
   similarities = []
 
-  user_ids = list(h.keys())
+  # Calculate pairwise Jaccard similarities
+  for i, j in combinations(range(n), 2):
 
-  for user1, user2 in combinations(user_ids, 2):
-    hashtags1 = set(h[user1])
-    hashtags2 = set(h[user2])
+    hashtags1 = hashtag_sets[i]
+    hashtags2 = hashtag_sets[j]
 
     union = hashtags1 | hashtags2
     intersection = hashtags1 & hashtags2
 
-    # Handle accounts with no hashtags
     if len(union) == 0:
       similarity = 1.0
     else:
@@ -347,10 +365,82 @@ def findTopUsersHashTags(hashtagfile="hashtags.json"):
 
     similarities.append(similarity)
 
-    # print(f"Number of account pairs: {len(similarities)}")
-    # print(f"Mean similarity: {np.mean(similarities):.3f}")
-    # print(f"Median similarity: {np.median(similarities):.3f}")
+    # Store similarity in both directions
+    similarity_matrix[i, j] = similarity
+    similarity_matrix[j, i] = similarity
 
+
+  np.fill_diagonal(similarity_matrix, 1.0)
+  # Convert similarity to distance
+  distance_matrix = 1 - similarity_matrix
+
+  # Convert square distance matrix to condensed format
+  condensed_distances = squareform(
+    distance_matrix,
+    checks=False
+  )
+
+  # Perform hierarchical clustering
+  Z = linkage(
+    condensed_distances,
+    method="average"
+  )
+  # Assign group labels based on original account ordering
+  group_labels = []
+
+  for i in range(len(user_ids)):
+    if i < 50:
+      group_labels.append("HITS")
+    elif i < 96:
+      group_labels.append("PageRank")
+    else:
+      group_labels.append("In-degree")
+  # Plot clustered similarity matrix
+  group_colors = {
+    "HITS": "red",
+    "PageRank": "blue",
+    "In-degree": "green"
+}
+
+  row_colors = pd.Series(
+    group_labels,
+    index=user_ids
+  ).map(group_colors).to_numpy()
+
+  sns.clustermap(
+    similarity_matrix,
+    row_linkage=Z,
+    col_linkage=Z,
+    cmap="viridis",
+    vmin=0,
+    vmax=1,
+    row_colors=row_colors,
+    col_colors=row_colors,
+    figsize=(14, 14),
+    xticklabels=False,
+    yticklabels=False,
+    cbar_kws={"label": "Jaccard Similarity"}
+  )
+
+  plt.suptitle(
+    "Hashtag Similarity Clustering by Network Ranking",
+    y=1.02
+  )
+
+  plt.savefig("report_figures/23_hashtag_sim_clustering")
+
+  # Each account compared with itself has similarity 1
+
+  # Calculate similarity statistics
+  print("\nJaccard Similarity Statistics:")
+  print(f"Number of account pairs: {len(similarities)}")
+  print(f"Mean similarity: {np.mean(similarities):.4f}")
+  print(f"Median similarity: {np.median(similarities):.4f}")
+  print(f"Minimum similarity: {np.min(similarities):.4f}")
+  print(f"Maximum similarity: {np.max(similarities):.4f}")
+  print(f"Standard deviation: {np.std(similarities):.4f}")
+
+  # Plot similarity distribution
   plt.figure(figsize=(10, 6))
   plt.hist(similarities, bins=20, edgecolor="black")
 
@@ -360,15 +450,43 @@ def findTopUsersHashTags(hashtagfile="hashtags.json"):
   plt.grid(axis="y", alpha=0.3)
   plt.show()
 
-  identical_pairs = []
+  # Plot similarity matrix
+  plt.figure(figsize=(14, 12))
 
-  for user1, user2 in combinations(user_ids, 2):
-    if set(h[user1]) == set(h[user2]) and len(h[user1]) > 0:
-      identical_pairs.append((user1, user2))
-      print(user1, user2)
+  sns.heatmap(
+    similarity_matrix,
+    cmap="viridis",
+    vmin=0,
+    vmax=1,
+    xticklabels=False,
+    yticklabels=False
+  )
 
-  print(f"Number of identical account pairs: {len(identical_pairs)}")
+  plt.xlabel("Accounts")
+  plt.ylabel("Accounts")
+  plt.title("Jaccard Similarity Matrix Between Accounts")
+  plt.tight_layout()
+  plt.savefig("report_figures/24_sim_ordered")
 
+  # # Identify identical profiles
+  # identical_pairs = []
+
+  # for i, j in combinations(range(n), 2):
+  #   if hashtag_sets[i] == hashtag_sets[j] and len(hashtag_sets[i]) > 0:
+  #     identical_pairs.append((user_ids[i], user_ids[j]))
+
+  # print(f"\nNumber of identical account pairs: {len(identical_pairs)}")
+
+  # unique_profiles = set(
+  #   tuple(sorted(hashtags))
+  #   for hashtags in hashtag_sets
+  # )
+
+  # print(f"Total accounts: {len(h)}")
+  # print(f"Unique hashtag profiles: {len(unique_profiles)}")
+  # print(f"Duplicate profiles: {len(h) - len(unique_profiles)}")
+
+  return similarity_matrix, user_ids, similarities
 
   # print(hashtagCounts)
 

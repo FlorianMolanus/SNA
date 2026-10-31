@@ -135,7 +135,7 @@ def parseFeat(path, featnames):
       result[nodeId] = featDict
   return result
 
-def parseFeatures(path, featnames, users):
+def parseFeatures(path, featnames, users, allowTags):
   userHashtags = {}
   with open(path, "r") as f:
     for line in f:
@@ -150,14 +150,14 @@ def parseFeatures(path, featnames, users):
       values = parts[1:]
 
       hashtags = [
-        featnames[i] for i, value in enumerate(values) if value
+        featnames[i] for i, value in enumerate(values) if value and (allowTags or featnames[i][0] == "#")
       ]
 
       userHashtags[nodeId] = hashtags
     return userHashtags
 
 
-def parseEgofeatures(path, featnames, egoId, users):
+def parseEgofeatures(path, featnames, egoId, users, allowTags):
   if users and egoId not in users:
     return {}
   userHashtags = {}
@@ -171,7 +171,7 @@ def parseEgofeatures(path, featnames, egoId, users):
       values = parts
 
       hashtags = [
-        featnames[i] for i, value in enumerate(values) if value == "1"
+        featnames[i] for i, value in enumerate(values) if value == "1" and (allowTags or featnames[i][0] == "#")
       ]
 
       userHashtags[egoId] = hashtags
@@ -193,7 +193,7 @@ def parseEgofeat(path, featnames, egoId):
   return {egoId: featDict}
 
 
-def getHashtags(folder, users):
+def getHashtags(folder, users, allowTags=True):
   print(users)
   egoIds = findEgoIds(folder)
   print(f"Found {len(egoIds)} ego networks in {folder}")
@@ -204,8 +204,8 @@ def getHashtags(folder, users):
   for egoId in egoIds:
     base = os.path.join(folder, egoId)
     featnames = parseFeatnames(base + ".featnames")
-    egofeats = parseEgofeatures(base + ".egofeat", featnames, egoId, users)
-    userHashtags = parseFeatures(base + ".feat", featnames, users)
+    egofeats = parseEgofeatures(base + ".egofeat", featnames, egoId, users, allowTags)
+    userHashtags = parseFeatures(base + ".feat", featnames, users, allowTags)
 
     currentUsers = {**userHashtags, **egofeats}
 
@@ -299,8 +299,8 @@ if __name__ == "__main__":
 
   users = readBestPosters()
   print(users)
-  # hashtags = getHashtags(folder, users)
-  # writeHashtags(hashtags)
+  hashtags = getHashtags(folder, users, False)
+  writeHashtags(hashtags, file="hashtagsNoTags.json")
 
   
 

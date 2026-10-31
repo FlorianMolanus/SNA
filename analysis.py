@@ -474,5 +474,5 @@ def findTopUsersHashTags(hashtagfile="hashtags.json"):
 # compareHits()
 # findTop150Users()
 # findTopUsersHashTags()
-# findTopUsersHashTags()
+findTopUsersHashTags(hashtagfile="hashtagsNoTags.json")
 

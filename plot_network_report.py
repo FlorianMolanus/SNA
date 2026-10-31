@@ -52,7 +52,7 @@ def load_json(path: Path) -> dict[str, Any]:
         return {}
 
 
-def save_figure(fig: plt.Figure, out_dir: Path, name: str) -> None:
+def save_figure(fig, out_dir: Path, name: str) -> None:
     fig.tight_layout()
     fig.savefig(out_dir / f"{name}.png", dpi=220, bbox_inches="tight")
     fig.savefig(out_dir / f"{name}.pdf", bbox_inches="tight")
@@ -324,8 +324,6 @@ def plot_cliques(comm: dict[str, Any], out: Path) -> None:
         ax.set_title("Maximal clique size distribution")
         ax.tick_params(axis="x", rotation=45)
         save_figure(fig, out, "09_maximal_clique_sizes")
-        write_csv(out / "maximal_clique_size_distribution.csv",
-                  ["clique_size", "number_of_cliques"], values)
 
     top = top_pairs(cliques.get("topNodesByCliqueCount"))
     if top:
@@ -545,7 +543,7 @@ def plot_leiden_community_network(
         graph, pos,
         node_size=node_sizes,
         node_color=[graph.nodes[cid]["size"] for cid in graph.nodes()],
-        cmap=plt.cm.viridis,
+        cmap=plt.colormaps['viridis'],
         edgecolors="black",
         linewidths=0.6,
         ax=ax,

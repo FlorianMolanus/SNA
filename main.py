@@ -288,6 +288,8 @@ def loadEgoNetworks(folder, read):
   return G, U
 
 
+
+# call analysis functions from here
 if __name__ == "__main__":
 
   folder = "data/twitter"
@@ -297,8 +299,8 @@ if __name__ == "__main__":
 
   users = readBestPosters()
   print(users)
-  hashtags = getHashtags(folder, users)
-  writeHashtags(hashtags)
+  # hashtags = getHashtags(folder, users)
+  # writeHashtags(hashtags)
 
   
 

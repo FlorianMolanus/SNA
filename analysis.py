@@ -87,8 +87,6 @@ def cliques(U, minSize=3, topN=20, maxCliques=None):
 def homophily(G):
   return {"degreeAssortivity": nx.degree_assortativity_coefficient(G)}
 
-
-# Pass communities to analyse bridges between communities rather than just bridges in general
 def bridges(U: nx.Graph, communities=None, topN=100, betweennessSamples=150):
   nodes = U.number_of_nodes()
   betweenness = nx.betweenness_centrality(U, k=betweennessSamples, seed=2222)
@@ -120,10 +118,6 @@ def bridges(U: nx.Graph, communities=None, topN=100, betweennessSamples=150):
     results["topByNumNeighbourCommunities"] = sorted(neighbourComms.items(), key=lambda x: x[1], reverse=True)[:topN]
 
 
-    # Save connections between every pair of Leiden communities.
-    # This uses the graph already in memory; no extra graph algorithm
-    # such as betweenness or Leiden is rerun.
-
     pairEdges = Counter()
     pairBridgeEdges = Counter()
 
@@ -143,7 +137,6 @@ def bridges(U: nx.Graph, communities=None, topN=100, betweennessSamples=150):
         pair = tuple(sorted((cu, cv)))
         pairBridgeEdges[pair] += 1
 
-    # Store every connected community pair, sorted by edge count.
     communityPairs = []
     for (ca, cb), edgeCount in sorted(
       pairEdges.items(),
@@ -311,7 +304,6 @@ def findTopUsersHashTags(hashtagfile="hashtags.json"):
   numberOfAccounts = len(h)
   print(f"Number of accounts: {numberOfAccounts}")
 
-  # Count hashtag occurrences
   hashtagCounts = Counter(
     hashtag for hashtags in h.values() for hashtag in hashtags
   )
@@ -320,7 +312,6 @@ def findTopUsersHashTags(hashtagfile="hashtags.json"):
   for hashtag, count in hashtagCounts.most_common(20):
     print(f"{hashtag}: {count}")
 
-  # Count hashtags per account
   hashtags_per_account = [len(set(hashtags)) for hashtags in h.values()]
 
   print(f"\nMean hashtags per account: {np.mean(hashtags_per_account):.2f}")
@@ -328,7 +319,6 @@ def findTopUsersHashTags(hashtagfile="hashtags.json"):
   print(f"Minimum: {min(hashtags_per_account)}")
   print(f"Maximum: {max(hashtags_per_account)}")
 
-  # Plot hashtag distribution
   plt.figure(figsize=(10, 6))
   plt.hist(hashtags_per_account, bins=15, edgecolor="black")
 
@@ -338,18 +328,15 @@ def findTopUsersHashTags(hashtagfile="hashtags.json"):
   plt.grid(axis="y", alpha=0.3)
   plt.savefig("report_figures/22_hashtag_numbers_distribution")
 
-  # Prepare account IDs and hashtag sets
   user_ids = list(h.keys())
   hashtag_sets = [set(h[user_id]) for user_id in user_ids]
 
   n = len(user_ids)
 
-  # Initialize similarity matrix
   similarity_matrix = np.zeros((n, n))
 
   similarities = []
 
-  # Calculate pairwise Jaccard similarities
   for i, j in combinations(range(n), 2):
 
     hashtags1 = hashtag_sets[i]
@@ -365,27 +352,23 @@ def findTopUsersHashTags(hashtagfile="hashtags.json"):
 
     similarities.append(similarity)
 
-    # Store similarity in both directions
     similarity_matrix[i, j] = similarity
     similarity_matrix[j, i] = similarity
 
 
   np.fill_diagonal(similarity_matrix, 1.0)
-  # Convert similarity to distance
   distance_matrix = 1 - similarity_matrix
 
-  # Convert square distance matrix to condensed format
   condensed_distances = squareform(
     distance_matrix,
     checks=False
   )
 
-  # Perform hierarchical clustering
   Z = linkage(
     condensed_distances,
     method="average"
   )
-  # Assign group labels based on original account ordering
+
   group_labels = []
 
   for i in range(len(user_ids)):
@@ -429,9 +412,7 @@ def findTopUsersHashTags(hashtagfile="hashtags.json"):
 
   plt.savefig("report_figures/23_hashtag_sim_clustering")
 
-  # Each account compared with itself has similarity 1
 
-  # Calculate similarity statistics
   print("\nJaccard Similarity Statistics:")
   print(f"Number of account pairs: {len(similarities)}")
   print(f"Mean similarity: {np.mean(similarities):.4f}")
@@ -440,7 +421,6 @@ def findTopUsersHashTags(hashtagfile="hashtags.json"):
   print(f"Maximum similarity: {np.max(similarities):.4f}")
   print(f"Standard deviation: {np.std(similarities):.4f}")
 
-  # Plot similarity distribution
   plt.figure(figsize=(10, 6))
   plt.hist(similarities, bins=20, edgecolor="black")
 
@@ -450,7 +430,6 @@ def findTopUsersHashTags(hashtagfile="hashtags.json"):
   plt.grid(axis="y", alpha=0.3)
   plt.show()
 
-  # Plot similarity matrix
   plt.figure(figsize=(14, 12))
 
   sns.heatmap(
@@ -495,5 +474,5 @@ def findTopUsersHashTags(hashtagfile="hashtags.json"):
 # compareHits()
 # findTop150Users()
 # findTopUsersHashTags()
-findTopUsersHashTags()
+# findTopUsersHashTags()
 

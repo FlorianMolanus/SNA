@@ -1,4 +1,5 @@
-
+# This code was originally generated with ChatGPT, with small revisions made after the fact. 
+# The bulk of the file remains the original AI-generated code.
 from __future__ import annotations
 
 import argparse

@@ -1,0 +1,146 @@
+{
+  "numNodes": 81306,
+  "numDirectedEdges": 1762504,
+  "numUndirectedEdges": 1336664,
+  "cliques": {
+    "maxCoreNumber": 96,
+    "numCliquesOf70Plus": 44,
+    "distinctUsersInCliquesOf70Plus": 81,
+    "communitiesOfThoseUsers": {
+      "428": 81
+    },
+    "largestCliqueSize": 71,
+    "largestCliqueFollowsPresent": 4153,
+    "largestCliqueFollowsPossible": 4970,
+    "largestCliqueFollowShare": 0.8356136820925554
+  },
+  "communities": {
+    "numCommunities": 5113,
+    "numCommunitiesWithMoreThanOneUser": 76,
+    "smallestSize": 13,
+    "largestSize": 8885,
+    "numIsolatedUsers": 5037,
+    "allIsolatedUsersAreSingletons": true,
+    "numCommunitiesWith1000Plus": 19,
+    "shareOfUsersInTenLargest": 0.5710771652768554,
+    "shareOfEdgesInsideCommunity": 0.8701715614395241
+  },
+  "degreeAssortativity": {
+    "outIn": -0.021770595974589482,
+    "inIn": -0.0001191738076058772,
+    "outOut": 0.06729112459076363,
+    "inOut": 0.0546235604986541,
+    "undirected": -0.03865470588862656
+  },
+  "bridges": {
+    "numArticulationPoints": 202,
+    "numArticulationPointsThatAreEgos": 201,
+    "bridgeEdges": [
+      {
+        "users": [
+          "266464616",
+          "5893402"
+        ],
+        "degrees": [
+          421,
+          1
+        ]
+      }
+    ],
+    "medianParticipationCoefficient": 0.0529583637691744,
+    "top20BetweennessAlsoTop20NeighbourCommunities": 13,
+    "top20BetweennessThatAreEgos": 4,
+    "top10Betweenness": [
+      {
+        "account": "813286",
+        "betweenness": 0.06053825092166279,
+        "inDegreeRank": 4,
+        "neighbourCommunities": 38,
+        "ownCommunityShare": 0.2706741946197277,
+        "participation": 0.8878769652423567,
+        "isEgo": false
+      },
+      {
+        "account": "115485051",
+        "betweenness": 0.04668577315927451,
+        "inDegreeRank": 1,
+        "neighbourCommunities": 41,
+        "ownCommunityShare": 0.46053798403783625,
+        "participation": 0.7563880503873892,
+        "isEgo": false
+      },
+      {
+        "account": "3359851",
+        "betweenness": 0.0418030350875889,
+        "inDegreeRank": 9,
+        "neighbourCommunities": 29,
+        "ownCommunityShare": 0.41767068273092367,
+        "participation": 0.6911388525991515,
+        "isEgo": false
+      },
+      {
+        "account": "40981798",
+        "betweenness": 0.034823125893519144,
+        "inDegreeRank": 2,
+        "neighbourCommunities": 20,
+        "ownCommunityShare": 0.9437751004016064,
+        "participation": 0.10879343518891549,
+        "isEgo": true
+      },
+      {
+        "account": "7861312",
+        "betweenness": 0.028228071271598005,
+        "inDegreeRank": 8,
+        "neighbourCommunities": 35,
+        "ownCommunityShare": 0.349907063197026,
+        "participation": 0.7898155601774438,
+        "isEgo": true
+      },
+      {
+        "account": "15846407",
+        "betweenness": 0.027049106662392065,
+        "inDegreeRank": 78,
+        "neighbourCommunities": 31,
+        "ownCommunityShare": 0.37021969080553296,
+        "participation": 0.8192282916049022,
+        "isEgo": false
+      },
+      {
+        "account": "12925072",
+        "betweenness": 0.019163067616098647,
+        "inDegreeRank": 65,
+        "neighbourCommunities": 34,
+        "ownCommunityShare": 0.24499411071849234,
+        "participation": 0.8719050056811797,
+        "isEgo": false
+      },
+      {
+        "account": "17093617",
+        "betweenness": 0.018195052633415473,
+        "inDegreeRank": 27,
+        "neighbourCommunities": 32,
+        "ownCommunityShare": 0.21649484536082475,
+        "participation": 0.9007561149659141,
+        "isEgo": false
+      },
+      {
+        "account": "783214",
+        "betweenness": 0.017120841811486688,
+        "inDegreeRank": 28,
+        "neighbourCommunities": 37,
+        "ownCommunityShare": 0.24725738396624472,
+        "participation": 0.8880072637931955,
+        "isEgo": false
+      },
+      {
+        "account": "30313925",
+        "betweenness": 0.01678338114336932,
+        "inDegreeRank": 30,
+        "neighbourCommunities": 20,
+        "ownCommunityShare": 0.6052409129332206,
+        "participation": 0.6114360312942795,
+        "isEgo": true
+      }
+    ]
+  }
+}
